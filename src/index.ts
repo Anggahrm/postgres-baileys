@@ -15,6 +15,9 @@ interface PostgreSQLConfig {
     ssl?: boolean | any; // Optional SSL options
 }
 
+// Type for PostgreSQL connection - can be Pool, config object, or connection URL string
+type PostgreSQLConnection = Pool | PostgreSQLConfig | string;
+
 // Interface for Authentication State
 interface State {
     creds: AuthenticationCreds;
@@ -91,8 +94,16 @@ class PostgreSQLAuthState {
     private pool: Pool;
     private sessionId: string;
 
-    constructor(poolOrConfig: Pool | PostgreSQLConfig, sessionId: string) {
-        this.pool = poolOrConfig instanceof Pool ? poolOrConfig : new Pool(poolOrConfig);
+    constructor(poolOrConfigOrUrl: PostgreSQLConnection, sessionId: string) {
+        if (poolOrConfigOrUrl instanceof Pool) {
+            this.pool = poolOrConfigOrUrl;
+        } else if (typeof poolOrConfigOrUrl === 'string') {
+            // Connection string format: postgresql://username:password@host:port/database
+            this.pool = new Pool({ connectionString: poolOrConfigOrUrl });
+        } else {
+            // PostgreSQLConfig object
+            this.pool = new Pool(poolOrConfigOrUrl);
+        }
         this.sessionId = sessionId;
         this.ensureTableExists();
     }
@@ -183,8 +194,8 @@ class PostgreSQLAuthState {
 }
 
 // Function to use PostgreSQL Authentication State
-async function usePostgreSQLAuthState(poolOrConfig: Pool | PostgreSQLConfig, sessionId: string) {
-    const authState = new PostgreSQLAuthState(poolOrConfig, sessionId);
+async function usePostgreSQLAuthState(poolOrConfigOrUrl: PostgreSQLConnection, sessionId: string) {
+    const authState = new PostgreSQLAuthState(poolOrConfigOrUrl, sessionId);
     const state = await authState.getAuthState();
 
     return {
@@ -198,4 +209,4 @@ async function usePostgreSQLAuthState(poolOrConfig: Pool | PostgreSQLConfig, ses
     };
 }
 
-export { usePostgreSQLAuthState, initAuthCreds };
+export { usePostgreSQLAuthState, initAuthCreds, PostgreSQLConfig, PostgreSQLConnection };
