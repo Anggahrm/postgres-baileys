@@ -2,7 +2,7 @@ import { Pool, PoolClient } from 'pg';
 import { proto } from '@whiskeysockets/baileys/WAProto';
 import { Curve, signedKeyPair } from '@whiskeysockets/baileys/lib/Utils/crypto';
 import { generateRegistrationId } from '@whiskeysockets/baileys/lib/Utils/generics';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { AuthenticationCreds } from '@whiskeysockets/baileys';
 
 // Interface for PostgreSQL Configurations
@@ -94,7 +94,7 @@ class PostgreSQLAuthState {
     private pool: Pool;
     private sessionId: string;
 
-    constructor(poolOrConfigOrUrl: PostgreSQLConnection, sessionId: string) {
+    constructor(poolOrConfigOrUrl: PostgreSQLConnection, sessionId?: string) {
         if (poolOrConfigOrUrl instanceof Pool) {
             this.pool = poolOrConfigOrUrl;
         } else if (typeof poolOrConfigOrUrl === 'string') {
@@ -104,7 +104,7 @@ class PostgreSQLAuthState {
             // PostgreSQLConfig object
             this.pool = new Pool(poolOrConfigOrUrl);
         }
-        this.sessionId = sessionId;
+        this.sessionId = sessionId || randomUUID();
         this.ensureTableExists();
     }
 
@@ -194,7 +194,7 @@ class PostgreSQLAuthState {
 }
 
 // Function to use PostgreSQL Authentication State
-async function usePostgreSQLAuthState(poolOrConfigOrUrl: PostgreSQLConnection, sessionId: string) {
+async function usePostgreSQLAuthState(poolOrConfigOrUrl: PostgreSQLConnection, sessionId?: string) {
     const authState = new PostgreSQLAuthState(poolOrConfigOrUrl, sessionId);
     const state = await authState.getAuthState();
 
