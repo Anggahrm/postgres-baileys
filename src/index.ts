@@ -3,7 +3,6 @@ import { proto } from '@whiskeysockets/baileys/WAProto';
 import { Curve, signedKeyPair } from '@whiskeysockets/baileys/lib/Utils/crypto';
 import { generateRegistrationId } from '@whiskeysockets/baileys/lib/Utils/generics';
 import { randomBytes } from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 import { AuthenticationCreds } from '@whiskeysockets/baileys';
 
 // Interface for PostgreSQL Configurations
@@ -79,12 +78,7 @@ const initAuthCreds = (): AuthenticationCreds => {
         accountSettings: {
             unarchiveChats: false,
         },
-        deviceId: randomBytes(16).toString('base64'),
-        phoneId: uuidv4(),
-        identityId: randomBytes(20),
         registered: false,
-        backupToken: randomBytes(20),
-        registration: {} as any,
         pairingEphemeralKeyPair: Curve.generateKeyPair(),
         pairingCode: undefined,
         lastPropHash: undefined,
@@ -158,7 +152,7 @@ class PostgreSQLAuthState {
                         ids.map(async (id) => {
                             const value = await this.readData(`${type}-${id}`);
                             if (type === 'app-state-sync-key' && value) {
-                                data[id] = proto.Message.AppStateSyncKeyData.fromObject(value);
+                                data[id] = proto.Message.AppStateSyncKeyData.create(value);
                             } else {
                                 data[id] = value;
                             }
