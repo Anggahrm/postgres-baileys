@@ -7,6 +7,7 @@ A robust and reliable Node.js package designed to seamlessly persist your `@whis
 * **Persistent Sessions:** Maintain uninterrupted WhatsApp bot connectivity, even across server restarts or crashes
 * **Scalability:** PostgreSQL's robust architecture supports handling large volumes of session data as your bot usage grows. 
 * **TypeScript Support:** Leverages TypeScript for enhanced type safety and improved code maintainability.
+* **Baileys v7 Compatible:** Updated for compatibility with the latest Baileys v7.x releases
 
 ## Installation
 
