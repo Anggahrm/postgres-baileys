@@ -125,6 +125,47 @@ async function main() {
 main();
 ```
 
+## Using Custom Schema
+
+If you need to use a specific PostgreSQL schema (other than the default 'public' schema):
+
+```javascript
+import { makeWASocket } from "@whiskeysockets/baileys";
+import { usePostgreSQLAuthState } from "postgres-baileys"; 
+
+// Configuration with custom schema
+const postgreSQLConfig = {
+  host: 'your-postgresql-host',
+  port: 5432, 
+  user: 'your-postgresql-user',
+  password: 'your-postgresql-password',
+  database: 'your-postgresql-database',
+  schema: 'whatsapp_sessions', // Custom schema name
+};
+
+// OR using connection URL with schema parameter
+const connectionUrl = "postgresql://username:password@host:port/database?schema=whatsapp_sessions";
+
+async function main() {
+  try {
+    const { state, saveCreds } = await usePostgreSQLAuthState(postgreSQLConfig);
+    
+    const sock = makeWASocket({
+      printQRInTerminal: true,
+      auth: state
+    });
+
+    sock.ev.on("creds.update", saveCreds);
+    
+    console.log("WebSocket connected");
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+main();
+```
+
 
 # OR
 
@@ -209,6 +250,11 @@ const authCreds = initAuthCreds();
 ## Important Considerations
 
 * **Database Setup:** Ensure your PostgreSQL database is set up and accessible. 
+* **Schema Configuration:** The library supports explicit schema specification for table creation:
+  * **Automatic Schema:** Defaults to the 'public' schema if none is specified
+  * **Configuration Object:** Add `schema: 'your_schema'` to your PostgreSQL config
+  * **Connection String:** Add `?schema=your_schema` to your connection URL
+  * **Pool Instances:** Always uses the 'public' schema (configure schema in your Pool if needed)
 * **SSL Configuration:** The library automatically handles SSL configuration for cloud database providers:
   * **Automatic SSL:** SSL is automatically enabled for cloud databases (Heroku, AWS RDS, Google Cloud SQL, Azure Database, etc.)
   * **Local Development:** SSL is disabled by default for localhost connections

@@ -6,6 +6,7 @@ interface PostgreSQLConfig {
     user: string;
     password: string;
     database: string;
+    schema?: string;
     ssl?: boolean | any;
 }
 type PostgreSQLConnection = Pool | PostgreSQLConfig | string;
