@@ -76,6 +76,7 @@ class PostgreSQLAuthState {
     constructor(poolOrConfigOrUrl, sessionId) {
         if (poolOrConfigOrUrl instanceof pg_1.Pool) {
             this.pool = poolOrConfigOrUrl;
+            this.schema = 'public'; // Default schema for Pool instances
         }
         else if (typeof poolOrConfigOrUrl === 'string') {
             // Connection string format: postgresql://username:password@host:port/database
@@ -84,6 +85,7 @@ class PostgreSQLAuthState {
                 connectionString: poolOrConfigOrUrl,
                 ssl: this.getSSLConfig(poolOrConfigOrUrl)
             });
+            this.schema = this.extractSchemaFromConnectionString(poolOrConfigOrUrl) || 'public';
         }
         else {
             // PostgreSQLConfig object - add SSL defaults if not specified
@@ -92,13 +94,14 @@ class PostgreSQLAuthState {
                 config.ssl = this.shouldEnableSSL(config);
             }
             this.pool = new pg_1.Pool(config);
+            this.schema = config.schema || 'public';
         }
         this.sessionId = sessionId || (0, crypto_2.randomUUID)();
         this.ensureTableExists();
     }
     async ensureTableExists() {
         const query = `
-            CREATE TABLE IF NOT EXISTS auth_data (
+            CREATE TABLE IF NOT EXISTS ${this.schema}.auth_data (
                 session_key VARCHAR(255) PRIMARY KEY,
                 data TEXT NOT NULL
             )
@@ -107,6 +110,16 @@ class PostgreSQLAuthState {
     }
     getKey(key) {
         return `${this.sessionId}:${key}`;
+    }
+    extractSchemaFromConnectionString(connectionString) {
+        try {
+            const url = new URL(connectionString);
+            const searchParams = new URLSearchParams(url.search);
+            return searchParams.get('schema') || searchParams.get('currentSchema');
+        }
+        catch {
+            return null;
+        }
     }
     getSSLConfig(connectionString) {
         // Check if SSL is already specified in the connection string
@@ -170,14 +183,14 @@ class PostgreSQLAuthState {
     }
     async writeData(key, data) {
         const serialized = JSON.stringify(bufferToJSON(data));
-        await this.executeQuery('INSERT INTO auth_data (session_key, data) VALUES ($1, $2) ON CONFLICT (session_key) DO UPDATE SET data = EXCLUDED.data', [this.getKey(key), serialized]);
+        await this.executeQuery(`INSERT INTO ${this.schema}.auth_data (session_key, data) VALUES ($1, $2) ON CONFLICT (session_key) DO UPDATE SET data = EXCLUDED.data`, [this.getKey(key), serialized]);
     }
     async readData(key) {
-        const rows = await this.executeQuery('SELECT data FROM auth_data WHERE session_key = $1', [this.getKey(key)]);
+        const rows = await this.executeQuery(`SELECT data FROM ${this.schema}.auth_data WHERE session_key = $1`, [this.getKey(key)]);
         return rows.length ? jsonToBuffer(JSON.parse(rows[0].data)) : null;
     }
     async removeData(key) {
-        await this.executeQuery('DELETE FROM auth_data WHERE session_key = $1', [this.getKey(key)]);
+        await this.executeQuery(`DELETE FROM ${this.schema}.auth_data WHERE session_key = $1`, [this.getKey(key)]);
     }
     async getAuthState() {
         const creds = (await this.readData('auth_creds')) || (0, exports.initAuthCreds)();
@@ -211,7 +224,7 @@ class PostgreSQLAuthState {
         await this.writeData('auth_creds', creds);
     }
     async deleteSession() {
-        await this.executeQuery('DELETE FROM auth_data WHERE session_key LIKE $1', [`${this.sessionId}:%`]);
+        await this.executeQuery(`DELETE FROM ${this.schema}.auth_data WHERE session_key LIKE $1`, [`${this.sessionId}:%`]);
     }
 }
 // Function to use PostgreSQL Authentication State

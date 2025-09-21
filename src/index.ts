@@ -12,6 +12,7 @@ interface PostgreSQLConfig {
     user: string;
     password: string;
     database: string;
+    schema?: string; // Optional schema name (defaults to 'public')
     ssl?: boolean | any; // Optional SSL options
 }
 
@@ -93,10 +94,12 @@ export const initAuthCreds = (): AuthenticationCreds => {
 class PostgreSQLAuthState {
     private pool: Pool;
     private sessionId: string;
+    private schema: string;
 
     constructor(poolOrConfigOrUrl: PostgreSQLConnection, sessionId?: string) {
         if (poolOrConfigOrUrl instanceof Pool) {
             this.pool = poolOrConfigOrUrl;
+            this.schema = 'public'; // Default schema for Pool instances
         } else if (typeof poolOrConfigOrUrl === 'string') {
             // Connection string format: postgresql://username:password@host:port/database
             // Auto-enable SSL for cloud database providers and add sensible defaults
@@ -104,6 +107,7 @@ class PostgreSQLAuthState {
                 connectionString: poolOrConfigOrUrl,
                 ssl: this.getSSLConfig(poolOrConfigOrUrl)
             });
+            this.schema = this.extractSchemaFromConnectionString(poolOrConfigOrUrl) || 'public';
         } else {
             // PostgreSQLConfig object - add SSL defaults if not specified
             const config = { ...poolOrConfigOrUrl };
@@ -111,6 +115,7 @@ class PostgreSQLAuthState {
                 config.ssl = this.shouldEnableSSL(config);
             }
             this.pool = new Pool(config);
+            this.schema = config.schema || 'public';
         }
         this.sessionId = sessionId || randomUUID();
         this.ensureTableExists();
@@ -118,7 +123,7 @@ class PostgreSQLAuthState {
 
     private async ensureTableExists(): Promise<void> {
         const query = `
-            CREATE TABLE IF NOT EXISTS auth_data (
+            CREATE TABLE IF NOT EXISTS ${this.schema}.auth_data (
                 session_key VARCHAR(255) PRIMARY KEY,
                 data TEXT NOT NULL
             )
@@ -128,6 +133,16 @@ class PostgreSQLAuthState {
 
     private getKey(key: string): string {
         return `${this.sessionId}:${key}`;
+    }
+
+    private extractSchemaFromConnectionString(connectionString: string): string | null {
+        try {
+            const url = new URL(connectionString);
+            const searchParams = new URLSearchParams(url.search);
+            return searchParams.get('schema') || searchParams.get('currentSchema');
+        } catch {
+            return null;
+        }
     }
 
     private getSSLConfig(connectionString: string): boolean | any {
@@ -202,21 +217,21 @@ class PostgreSQLAuthState {
     private async writeData(key: string, data: any): Promise<void> {
         const serialized = JSON.stringify(bufferToJSON(data));
         await this.executeQuery(
-            'INSERT INTO auth_data (session_key, data) VALUES ($1, $2) ON CONFLICT (session_key) DO UPDATE SET data = EXCLUDED.data',
+            `INSERT INTO ${this.schema}.auth_data (session_key, data) VALUES ($1, $2) ON CONFLICT (session_key) DO UPDATE SET data = EXCLUDED.data`,
             [this.getKey(key), serialized]
         );
     }
 
     private async readData(key: string): Promise<any | null> {
         const rows = await this.executeQuery(
-            'SELECT data FROM auth_data WHERE session_key = $1',
+            `SELECT data FROM ${this.schema}.auth_data WHERE session_key = $1`,
             [this.getKey(key)]
         );
         return rows.length ? jsonToBuffer(JSON.parse(rows[0].data)) : null;
     }
 
     private async removeData(key: string): Promise<void> {
-        await this.executeQuery('DELETE FROM auth_data WHERE session_key = $1', [this.getKey(key)]);
+        await this.executeQuery(`DELETE FROM ${this.schema}.auth_data WHERE session_key = $1`, [this.getKey(key)]);
     }
 
     public async getAuthState(): Promise<State> {
@@ -256,7 +271,7 @@ class PostgreSQLAuthState {
     }
 
     public async deleteSession(): Promise<void> {
-        await this.executeQuery('DELETE FROM auth_data WHERE session_key LIKE $1', [`${this.sessionId}:%`]);
+        await this.executeQuery(`DELETE FROM ${this.schema}.auth_data WHERE session_key LIKE $1`, [`${this.sessionId}:%`]);
     }
 }
 
