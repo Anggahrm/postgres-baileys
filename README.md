@@ -209,6 +209,11 @@ const authCreds = initAuthCreds();
 ## Important Considerations
 
 * **Database Setup:** Ensure your PostgreSQL database is set up and accessible. 
+* **SSL Configuration:** The library automatically handles SSL configuration for cloud database providers:
+  * **Automatic SSL:** SSL is automatically enabled for cloud databases (Heroku, AWS RDS, Google Cloud SQL, Azure Database, etc.)
+  * **Local Development:** SSL is disabled by default for localhost connections
+  * **Custom SSL:** You can override SSL settings by explicitly setting `ssl` in your configuration object or connection string
+  * **Cloud Database Support:** The library recognizes common cloud database hostnames and applies appropriate SSL settings with `rejectUnauthorized: false` to handle self-signed certificates
 * **Error Handling:** Implement robust error handling, especially for database connection issues.
 
 ## FAQ
