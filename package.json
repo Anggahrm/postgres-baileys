@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "A simple package to save your @whiskeysockets/baileys session to a PostgreSQL database.",
   "main": "src/index.ts",
-  "types": "src/index.d.ts",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
