@@ -79,11 +79,19 @@ class PostgreSQLAuthState {
         }
         else if (typeof poolOrConfigOrUrl === 'string') {
             // Connection string format: postgresql://username:password@host:port/database
-            this.pool = new pg_1.Pool({ connectionString: poolOrConfigOrUrl });
+            // Auto-enable SSL for cloud database providers and add sensible defaults
+            this.pool = new pg_1.Pool({
+                connectionString: poolOrConfigOrUrl,
+                ssl: this.getSSLConfig(poolOrConfigOrUrl)
+            });
         }
         else {
-            // PostgreSQLConfig object
-            this.pool = new pg_1.Pool(poolOrConfigOrUrl);
+            // PostgreSQLConfig object - add SSL defaults if not specified
+            const config = { ...poolOrConfigOrUrl };
+            if (config.ssl === undefined) {
+                config.ssl = this.shouldEnableSSL(config);
+            }
+            this.pool = new pg_1.Pool(config);
         }
         this.sessionId = sessionId || (0, crypto_2.randomUUID)();
         this.ensureTableExists();
@@ -99,6 +107,56 @@ class PostgreSQLAuthState {
     }
     getKey(key) {
         return `${this.sessionId}:${key}`;
+    }
+    getSSLConfig(connectionString) {
+        // Check if SSL is already specified in the connection string
+        if (connectionString.includes('sslmode=') || connectionString.includes('ssl=')) {
+            return undefined; // Let the connection string handle it
+        }
+        // Auto-enable SSL for common cloud database providers
+        const url = new URL(connectionString);
+        const hostname = url.hostname.toLowerCase();
+        // Enable SSL for common cloud providers
+        if (this.isCloudDatabase(hostname)) {
+            return { rejectUnauthorized: false }; // Accept self-signed certificates common in cloud DBs
+        }
+        // Default to no SSL for localhost/local development
+        return hostname === 'localhost' || hostname === '127.0.0.1' ? false : { rejectUnauthorized: false };
+    }
+    shouldEnableSSL(config) {
+        const hostname = config.host.toLowerCase();
+        // Enable SSL for common cloud providers
+        if (this.isCloudDatabase(hostname)) {
+            return { rejectUnauthorized: false };
+        }
+        // Default to no SSL for localhost/local development
+        return hostname === 'localhost' || hostname === '127.0.0.1' ? false : { rejectUnauthorized: false };
+    }
+    isCloudDatabase(hostname) {
+        const cloudProviders = [
+            // Heroku Postgres
+            '.compute-1.amazonaws.com',
+            '.compute.amazonaws.com',
+            'ec2-',
+            // AWS RDS
+            '.rds.amazonaws.com',
+            '.rds.',
+            // Google Cloud SQL
+            '.gcp.neon.tech',
+            '.googleusercontent.com',
+            // Azure Database
+            '.postgres.database.azure.com',
+            '.database.windows.net',
+            // DigitalOcean
+            '.db.ondigitalocean.com',
+            // Railway
+            '.railway.app',
+            // PlanetScale, Neon, and other cloud providers
+            '.neon.tech',
+            '.planetscale.sh',
+            '.supabase.co'
+        ];
+        return cloudProviders.some(provider => hostname.includes(provider));
     }
     async executeQuery(query, params = []) {
         const client = await this.pool.connect();
