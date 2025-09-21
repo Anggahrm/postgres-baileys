@@ -2,17 +2,31 @@
   "name": "postgres-baileys",
   "version": "2.0.0",
   "description": "A simple package to save your @whiskeysockets/baileys session to a PostgreSQL database.",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "hacxk",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Anggahrm/postgres-baileys.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Anggahrm/postgres-baileys/issues"
+  },
+  "homepage": "https://github.com/Anggahrm/postgres-baileys#readme",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "package.json"
+  ],
   "devDependencies": {
+    "@types/node": "^22.5.4",
     "@types/pg": "^8.15.5",
-    "@whiskeysockets/baileys": "^7.0.0-rc.3",
     "typescript": "^5.9.2"
   },
   "keywords": [
@@ -26,6 +40,7 @@
     "postgres"
   ],
   "dependencies": {
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "@whiskeysockets/baileys": "^7.0.0-rc.3"
   }
 }
