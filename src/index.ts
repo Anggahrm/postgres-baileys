@@ -66,7 +66,7 @@ function jsonToBuffer(obj: any): any {
 }
 
 // Function to initialize authentication credentials
-const initAuthCreds = (): AuthenticationCreds => {
+export const initAuthCreds = (): AuthenticationCreds => {
     const identityKey = Curve.generateKeyPair();
     return {
         noiseKey: Curve.generateKeyPair(),
@@ -194,7 +194,7 @@ class PostgreSQLAuthState {
 }
 
 // Function to use PostgreSQL Authentication State
-async function usePostgreSQLAuthState(poolOrConfigOrUrl: PostgreSQLConnection, sessionId?: string) {
+export async function usePostgreSQLAuthState(poolOrConfigOrUrl: PostgreSQLConnection, sessionId?: string) {
     const authState = new PostgreSQLAuthState(poolOrConfigOrUrl, sessionId);
     const state = await authState.getAuthState();
 
@@ -209,4 +209,4 @@ async function usePostgreSQLAuthState(poolOrConfigOrUrl: PostgreSQLConnection, s
     };
 }
 
-export { usePostgreSQLAuthState, initAuthCreds, PostgreSQLConfig, PostgreSQLConnection };
+export { PostgreSQLConfig, PostgreSQLConnection };
